@@ -54,7 +54,7 @@ export function LoginForm() {
       if (result.success && result.data) {
         login(result.data.user, result.data.token);
         toast.success('로그인되었습니다');
-        router.push('/dashboard');
+        router.push('/dashboard/bookings');
       } else {
         toast.error(result.error || '로그인에 실패했습니다');
       }

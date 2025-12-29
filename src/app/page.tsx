@@ -10,9 +10,9 @@ export default function Home() {
   const { isAuthenticated } = useAuthStore();
 
   useEffect(() => {
-    // 이미 로그인된 경우 대시보드로 리다이렉트
+    // 이미 로그인된 경우 예약 조회 페이지로 리다이렉트
     if (isAuthenticated) {
-      router.push('/dashboard');
+      router.push('/dashboard/bookings');
     }
   }, [isAuthenticated, router]);
 
