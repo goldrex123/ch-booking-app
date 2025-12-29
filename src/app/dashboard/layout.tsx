@@ -46,7 +46,7 @@ export default function DashboardLayout({
 
         {/* 메인 콘텐츠 */}
         <main className="flex-1 overflow-auto bg-muted/10">
-          <div className="container py-6">{children}</div>
+          <div className="container px-4 py-6 md:px-6 lg:px-8">{children}</div>
         </main>
       </div>
     </div>
