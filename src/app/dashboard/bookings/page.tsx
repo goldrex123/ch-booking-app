@@ -1,8 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
+import { useEffect, useState, useMemo } from 'react';
 import { toast } from 'sonner';
 
 import {
@@ -12,31 +10,27 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
+import { BookingCalendar } from '@/components/booking/BookingCalendar';
+import { BookingDetailDialog } from '@/components/booking/BookingDetailDialog';
+import { bookingsToCalendarEvents } from '@/components/booking/utils';
 
 import { useBookingStore } from '@/store/bookingStore';
 import { useAuthStore } from '@/store/authStore';
 import { bookingApi } from '@/lib/api/bookings';
 import type { Booking } from '@/types';
-import { BOOKING_STATUS_LABELS } from '@/lib/constants';
 
 /**
  * 예약 조회 페이지
  */
 export default function BookingsPage() {
   const { user } = useAuthStore();
-  const { bookings, setBookings } = useBookingStore();
+  const { bookings, setBookings, updateBooking, deleteBooking } =
+    useBookingStore();
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     loadBookings();
@@ -57,24 +51,88 @@ export default function BookingsPage() {
     }
   };
 
-  const getStatusVariant = (status: Booking['status']) => {
-    switch (status) {
-      case 'approved':
-        return 'default';
-      case 'pending':
-        return 'secondary';
-      case 'rejected':
-        return 'destructive';
-      case 'cancelled':
-        return 'outline';
-      default:
-        return 'outline';
+  // 예약 수정 핸들러
+  const handleUpdate = async (data: Partial<Booking>) => {
+    if (!selectedBooking) return;
+
+    try {
+      const result = await bookingApi.update(selectedBooking.id, data);
+      if (result.success && result.data) {
+        updateBooking(selectedBooking.id, result.data);
+        toast.success('예약이 수정되었습니다');
+        setDialogOpen(false);
+        setSelectedBooking(null);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : '예약 수정에 실패했습니다';
+      toast.error(message);
+      throw error;
+    }
+  };
+
+  // 예약 삭제 핸들러
+  const handleDelete = async () => {
+    if (!selectedBooking) return;
+
+    try {
+      const result = await bookingApi.delete(selectedBooking.id);
+      if (result.success) {
+        deleteBooking(selectedBooking.id);
+        toast.success('예약이 삭제되었습니다');
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : '예약 삭제에 실패했습니다';
+      toast.error(message);
+      throw error;
+    }
+  };
+
+  // 예약 취소 핸들러
+  const handleCancel = async () => {
+    if (!selectedBooking) return;
+
+    try {
+      const result = await bookingApi.cancel(selectedBooking.id);
+      if (result.success && result.data) {
+        updateBooking(selectedBooking.id, result.data);
+        toast.success('예약이 취소되었습니다');
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : '예약 취소에 실패했습니다';
+      toast.error(message);
+      throw error;
     }
   };
 
   const myBookings = bookings.filter((b) => b.userId === user?.id);
   const vehicleBookings = myBookings.filter((b) => b.type === 'vehicle');
   const roomBookings = myBookings.filter((b) => b.type === 'room');
+
+  // 예약을 달력 이벤트로 변환 (메모이제이션)
+  const allEvents = useMemo(
+    () => bookingsToCalendarEvents(myBookings),
+    [myBookings]
+  );
+  const vehicleEvents = useMemo(
+    () => bookingsToCalendarEvents(vehicleBookings),
+    [vehicleBookings]
+  );
+  const roomEvents = useMemo(
+    () => bookingsToCalendarEvents(roomBookings),
+    [roomBookings]
+  );
+
+  // 예약 선택 핸들러 (달력 이벤트 클릭)
+  const handleSelectEvent = (event: { id: string }) => {
+    const booking = bookings.find((b) => b.id === event.id);
+    if (booking) {
+      setSelectedBooking(booking);
+      setDialogOpen(true);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -93,6 +151,33 @@ export default function BookingsPage() {
         </p>
       </div>
 
+      {/* 상태별 범례 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>예약 상태</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-4">
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-4 rounded" style={{ backgroundColor: 'rgb(34, 197, 94)' }} />
+              <span className="text-sm">승인됨</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-4 rounded" style={{ backgroundColor: 'rgb(59, 130, 246)' }} />
+              <span className="text-sm">승인 대기</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-4 rounded" style={{ backgroundColor: 'rgb(239, 68, 68)' }} />
+              <span className="text-sm">거부됨</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-4 w-4 rounded" style={{ backgroundColor: 'rgb(107, 114, 128)' }} />
+              <span className="text-sm">취소됨</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Tabs defaultValue="all" className="space-y-4">
         <TabsList>
           <TabsTrigger value="all">전체 ({myBookings.length})</TabsTrigger>
@@ -101,86 +186,88 @@ export default function BookingsPage() {
         </TabsList>
 
         <TabsContent value="all" className="space-y-4">
-          <BookingTable bookings={myBookings} getStatusVariant={getStatusVariant} />
+          <Card>
+            <CardHeader>
+              <CardTitle>전체 예약 달력</CardTitle>
+              <CardDescription>
+                총 {myBookings.length}건의 예약이 있습니다
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {myBookings.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground">
+                  예약 내역이 없습니다
+                </div>
+              ) : (
+                <BookingCalendar
+                  events={allEvents}
+                  onSelectEvent={handleSelectEvent}
+                />
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="vehicle" className="space-y-4">
-          <BookingTable bookings={vehicleBookings} getStatusVariant={getStatusVariant} />
+          <Card>
+            <CardHeader>
+              <CardTitle>차량 예약 달력</CardTitle>
+              <CardDescription>
+                총 {vehicleBookings.length}건의 차량 예약이 있습니다
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {vehicleBookings.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground">
+                  차량 예약 내역이 없습니다
+                </div>
+              ) : (
+                <BookingCalendar
+                  events={vehicleEvents}
+                  onSelectEvent={handleSelectEvent}
+                />
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="room" className="space-y-4">
-          <BookingTable bookings={roomBookings} getStatusVariant={getStatusVariant} />
+          <Card>
+            <CardHeader>
+              <CardTitle>부속실 예약 달력</CardTitle>
+              <CardDescription>
+                총 {roomBookings.length}건의 부속실 예약이 있습니다
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {roomBookings.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground">
+                  부속실 예약 내역이 없습니다
+                </div>
+              ) : (
+                <BookingCalendar
+                  events={roomEvents}
+                  onSelectEvent={handleSelectEvent}
+                />
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
+
+      {/* 예약 상세 정보 다이얼로그 */}
+      {user && (
+        <BookingDetailDialog
+          booking={selectedBooking}
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
+          onCancel={handleCancel}
+          userId={user.id}
+        />
+      )}
     </div>
   );
 }
 
-function BookingTable({
-  bookings,
-  getStatusVariant,
-}: {
-  bookings: Booking[];
-  getStatusVariant: (status: Booking['status']) => string;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>예약 목록</CardTitle>
-        <CardDescription>
-          총 {bookings.length}건의 예약이 있습니다
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {bookings.length === 0 ? (
-          <div className="py-8 text-center text-muted-foreground">
-            예약 내역이 없습니다
-          </div>
-        ) : (
-          <div className="overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>유형</TableHead>
-                  <TableHead>대상</TableHead>
-                  <TableHead>시작일</TableHead>
-                  <TableHead>종료일</TableHead>
-                  <TableHead>목적</TableHead>
-                  <TableHead>상태</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {bookings.map((booking) => (
-                  <TableRow key={booking.id}>
-                    <TableCell>
-                      {booking.type === 'vehicle' ? '차량' : '부속실'}
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {booking.type === 'vehicle'
-                        ? booking.vehicleName
-                        : booking.roomName}
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(booking.startDate), 'PPP', { locale: ko })}
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(booking.endDate), 'PPP', { locale: ko })}
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate">
-                      {booking.purpose}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusVariant(booking.status) as "default" | "destructive" | "outline" | "secondary"}>
-                        {BOOKING_STATUS_LABELS[booking.status]}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}

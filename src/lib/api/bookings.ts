@@ -268,7 +268,82 @@ export const bookingApi = {
   },
 
   /**
-   * 예약 삭제 (관리자만)
+   * 예약 수정
+   */
+  async update(
+    id: string,
+    data: Partial<Booking>
+  ): Promise<ApiResponse<Booking>> {
+    return simulateApiCall(() => {
+      const bookings = storage.get<Booking[]>(STORAGE_KEY) || [];
+      const targetIndex = bookings.findIndex((b) => b.id === id);
+
+      if (targetIndex === -1) {
+        throw new Error('예약을 찾을 수 없습니다');
+      }
+
+      const targetBooking = bookings[targetIndex];
+      if (!targetBooking) {
+        throw new Error('예약을 찾을 수 없습니다');
+      }
+
+      // 중복 예약 체크 (날짜가 변경된 경우에만)
+      if (data.startDate || data.endDate) {
+        const newStartDate = data.startDate || targetBooking.startDate;
+        const newEndDate = data.endDate || targetBooking.endDate;
+
+        const hasConflict = bookings.some((booking, index) => {
+          // 자기 자신은 제외
+          if (index === targetIndex) return false;
+
+          // 취소된 예약은 제외
+          if (booking.status === 'cancelled') return false;
+
+          // 같은 리소스인지 확인
+          if (targetBooking.type === 'vehicle' && booking.type === 'vehicle') {
+            if (booking.vehicleId !== targetBooking.vehicleId) return false;
+          } else if (targetBooking.type === 'room' && booking.type === 'room') {
+            if (booking.roomId !== targetBooking.roomId) return false;
+          } else {
+            return false;
+          }
+
+          return hasDateOverlap(
+            booking.startDate,
+            booking.endDate,
+            newStartDate,
+            newEndDate
+          );
+        });
+
+        if (hasConflict) {
+          throw new Error('해당 시간대에 이미 예약이 존재합니다');
+        }
+      }
+
+      // 업데이트 수행 (타입별로 처리)
+      const updatedBooking: Booking =
+        targetBooking.type === 'vehicle'
+          ? ({
+              ...targetBooking,
+              ...data,
+              updatedAt: new Date().toISOString(),
+            } as VehicleBooking)
+          : ({
+              ...targetBooking,
+              ...data,
+              updatedAt: new Date().toISOString(),
+            } as RoomBooking);
+
+      bookings[targetIndex] = updatedBooking;
+      storage.set(STORAGE_KEY, bookings);
+
+      return updatedBooking;
+    });
+  },
+
+  /**
+   * 예약 삭제
    */
   async delete(id: string): Promise<ApiResponse<void>> {
     return simulateApiCall(() => {
