@@ -7,7 +7,7 @@ import { isAfter, parseISO } from 'date-fns';
 export const vehicleBookingSchema = z
   .object({
     vehicleId: z.string().min(1, '차량을 선택해주세요'),
-    vehicleName: z.string(),
+    vehicleName: z.string().min(1, '차량명을 입력해주세요'),
     startDate: z.string().min(1, '시작 날짜를 선택해주세요'),
     endDate: z.string().min(1, '종료 날짜를 선택해주세요'),
     destination: z
@@ -41,7 +41,7 @@ export const vehicleBookingSchema = z
 export const roomBookingSchema = z
   .object({
     roomId: z.string().min(1, '부속실을 선택해주세요'),
-    roomName: z.string(),
+    roomName: z.string().min(1, '부속실명을 입력해주세요'),
     startDate: z.string().min(1, '시작 날짜를 선택해주세요'),
     endDate: z.string().min(1, '종료 날짜를 선택해주세요'),
     attendees: z

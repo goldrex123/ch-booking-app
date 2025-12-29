@@ -1,9 +1,9 @@
 import type { Vehicle, VehicleFormData } from '@/types';
 import { storage, simulateApiCall, type ApiResponse } from './client';
-import { INITIAL_VEHICLES } from '../constants';
+import { INITIAL_VEHICLES, STORAGE_KEYS } from '../constants';
 import { nanoid } from 'nanoid';
 
-const STORAGE_KEY = 'vehicles';
+const STORAGE_KEY = STORAGE_KEYS.VEHICLES;
 
 /**
  * 차량 API

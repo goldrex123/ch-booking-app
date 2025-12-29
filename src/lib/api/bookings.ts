@@ -6,10 +6,11 @@ import type {
   RoomBookingFormData,
 } from '@/types';
 import { storage, simulateApiCall, type ApiResponse } from './client';
+import { STORAGE_KEYS } from '../constants';
 import { nanoid } from 'nanoid';
 import { isAfter, isBefore, parseISO, isEqual } from 'date-fns';
 
-const STORAGE_KEY = 'bookings';
+const STORAGE_KEY = STORAGE_KEYS.BOOKINGS;
 
 /**
  * 날짜 범위 겹침 체크
@@ -221,11 +222,23 @@ export const bookingApi = {
         throw new Error('예약을 찾을 수 없습니다');
       }
 
-      const updatedBooking = {
-        ...bookings[index],
-        status,
-        updatedAt: new Date().toISOString(),
-      } as Booking;
+      const booking = bookings[index];
+      if (!booking) {
+        throw new Error('예약을 찾을 수 없습니다');
+      }
+
+      const updatedBooking: Booking =
+        booking.type === 'vehicle'
+          ? {
+              ...(booking as VehicleBooking),
+              status,
+              updatedAt: new Date().toISOString(),
+            }
+          : {
+              ...(booking as RoomBooking),
+              status,
+              updatedAt: new Date().toISOString(),
+            };
 
       bookings[index] = updatedBooking;
       storage.set(STORAGE_KEY, bookings);

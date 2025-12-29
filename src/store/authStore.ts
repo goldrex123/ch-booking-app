@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User } from '@/types';
+import { STORAGE_KEYS } from '@/lib/constants';
 
 /**
  * 인증 스토어 상태
@@ -47,7 +48,7 @@ export const useAuthStore = create<AuthStore>()(
         })),
     }),
     {
-      name: 'auth-storage',
+      name: STORAGE_KEYS.AUTH,
     }
   )
 );

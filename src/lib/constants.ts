@@ -205,3 +205,13 @@ export const COMMON_FACILITIES = [
   '커피머신',
   'WiFi',
 ] as const;
+
+/**
+ * LocalStorage 키 상수
+ */
+export const STORAGE_KEYS = {
+  AUTH: 'auth-storage',
+  VEHICLES: 'vehicles',
+  BOOKINGS: 'bookings',
+  ROOMS: 'rooms',
+} as const;

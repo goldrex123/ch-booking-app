@@ -23,8 +23,7 @@ export const authApi = {
         throw new Error('아이디 또는 비밀번호가 올바르지 않습니다');
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password, ...userWithoutPassword } = user;
+      const { password: _password, ...userWithoutPassword } = user;
 
       // Mock JWT 토큰 생성
       const token = `mock-jwt-token-${user.id}-${Date.now()}`;
@@ -66,8 +65,7 @@ export const authApi = {
         throw new Error('사용자를 찾을 수 없습니다');
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password, ...userWithoutPassword } = user;
+      const { password: _password, ...userWithoutPassword } = user;
       return userWithoutPassword as User;
     });
   },

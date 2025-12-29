@@ -1,9 +1,9 @@
 import type { Room, RoomFormData } from '@/types';
 import { storage, simulateApiCall, type ApiResponse } from './client';
-import { INITIAL_ROOMS } from '../constants';
+import { INITIAL_ROOMS, STORAGE_KEYS } from '../constants';
 import { nanoid } from 'nanoid';
 
-const STORAGE_KEY = 'rooms';
+const STORAGE_KEY = STORAGE_KEYS.ROOMS;
 
 /**
  * 부속실 API
