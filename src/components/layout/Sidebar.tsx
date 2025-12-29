@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard,
   Calendar,
   Car,
   Building,
@@ -13,11 +12,6 @@ import {
 import { cn } from '@/lib/utils';
 
 const menuItems = [
-  {
-    title: '대시보드',
-    href: '/dashboard',
-    icon: LayoutDashboard,
-  },
   {
     title: '예약 조회',
     href: '/dashboard/bookings',
@@ -58,7 +52,7 @@ export function Sidebar({ className }: SidebarProps) {
   return (
     <div className={cn('flex h-full flex-col border-r bg-background', className)}>
       <div className="flex-1 overflow-auto py-4">
-        <nav className="space-y-1 px-2">
+        <nav className="space-y-1 px-4">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
