@@ -89,24 +89,6 @@ export default function BookingsPage() {
     }
   };
 
-  // 예약 취소 핸들러
-  const handleCancel = async () => {
-    if (!selectedBooking) return;
-
-    try {
-      const result = await bookingApi.cancel(selectedBooking.id);
-      if (result.success && result.data) {
-        updateBooking(selectedBooking.id, result.data);
-        toast.success('예약이 취소되었습니다');
-      }
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : '예약 취소에 실패했습니다';
-      toast.error(message);
-      throw error;
-    }
-  };
-
   const myBookings = bookings.filter((b) => b.userId === user?.id);
   const vehicleBookings = myBookings.filter((b) => b.type === 'vehicle');
   const roomBookings = myBookings.filter((b) => b.type === 'room');
@@ -151,34 +133,7 @@ export default function BookingsPage() {
         </p>
       </div>
 
-      {/* 상태별 범례 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>예약 상태</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-4 rounded" style={{ backgroundColor: 'rgb(34, 197, 94)' }} />
-              <span className="text-sm">승인됨</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-4 rounded" style={{ backgroundColor: 'rgb(59, 130, 246)' }} />
-              <span className="text-sm">승인 대기</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-4 rounded" style={{ backgroundColor: 'rgb(239, 68, 68)' }} />
-              <span className="text-sm">거부됨</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-4 w-4 rounded" style={{ backgroundColor: 'rgb(107, 114, 128)' }} />
-              <span className="text-sm">취소됨</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Tabs defaultValue="all" className="space-y-4">
+      <Tabs defaultValue="all" className="space-y-6">
         <TabsList>
           <TabsTrigger value="all">전체 ({myBookings.length})</TabsTrigger>
           <TabsTrigger value="vehicle">차량 ({vehicleBookings.length})</TabsTrigger>
@@ -263,7 +218,6 @@ export default function BookingsPage() {
           onOpenChange={setDialogOpen}
           onUpdate={handleUpdate}
           onDelete={handleDelete}
-          onCancel={handleCancel}
           userId={user.id}
         />
       )}

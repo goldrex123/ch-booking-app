@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -19,34 +17,30 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { DateTimePicker } from '@/components/ui/datetime-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 
-import { roomBookingSchema, type RoomBookingFormValues } from '@/lib/validations/booking';
+import {
+  multiRoomBookingSchema,
+  type MultiRoomBookingFormValues,
+} from '@/lib/validations/booking';
 import { useAuthStore } from '@/store/authStore';
 import { useRoomStore } from '@/store/roomStore';
 import { useBookingStore } from '@/store/bookingStore';
 import { roomApi } from '@/lib/api/rooms';
 import { bookingApi } from '@/lib/api/bookings';
-import { cn } from '@/lib/utils';
+import { isBeforeToday } from '@/lib/utils';
 
 /**
- * 부속실 예약 페이지
+ * 부속실 예약 페이지 (다중 선택 지원)
  */
 export default function RoomBookingPage() {
   const router = useRouter();
@@ -57,11 +51,10 @@ export default function RoomBookingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<RoomBookingFormValues>({
-    resolver: zodResolver(roomBookingSchema),
+  const form = useForm<MultiRoomBookingFormValues>({
+    resolver: zodResolver(multiRoomBookingSchema),
     defaultValues: {
-      roomId: '',
-      roomName: '',
+      roomIds: [],
       startDate: '',
       endDate: '',
       attendees: 1,
@@ -88,7 +81,7 @@ export default function RoomBookingPage() {
     }
   };
 
-  const onSubmit = async (data: RoomBookingFormValues) => {
+  const onSubmit = async (data: MultiRoomBookingFormValues) => {
     if (!user) {
       toast.error('로그인이 필요합니다');
       return;
@@ -97,16 +90,37 @@ export default function RoomBookingPage() {
     setIsSubmitting(true);
 
     try {
-      const result = await bookingApi.createRoomBooking(
+      // 부속실 이름 맵 생성
+      const roomMap = new Map(rooms.map((r) => [r.id, { name: r.name }]));
+
+      const result = await bookingApi.createMultiRoomBookings(
         data,
         user.id,
-        user.name
+        user.name,
+        roomMap
       );
 
       if (result.success && result.data) {
-        addBooking(result.data);
-        toast.success('부속실 예약이 완료되었습니다');
-        router.push('/dashboard/bookings');
+        const { succeeded, failed } = result.data;
+
+        // 성공한 예약들을 스토어에 추가
+        if (succeeded.length > 0) {
+          succeeded.forEach((booking) => addBooking(booking));
+        }
+
+        // 결과 메시지 표시
+        if (succeeded.length > 0 && failed.length === 0) {
+          toast.success(`${succeeded.length}건의 부속실 예약이 완료되었습니다`);
+          router.push('/dashboard/bookings');
+        } else if (succeeded.length > 0 && failed.length > 0) {
+          toast.warning(
+            `${succeeded.length}건 성공, ${failed.length}건 실패했습니다`
+          );
+          console.error('실패한 예약:', failed);
+        } else {
+          toast.error('모든 예약이 실패했습니다');
+          console.error('실패한 예약:', failed);
+        }
       } else {
         toast.error(result.error || '예약에 실패했습니다');
       }
@@ -119,9 +133,8 @@ export default function RoomBookingPage() {
   };
 
   const availableRooms = rooms.filter((r) => r.status === 'available');
-
-  const selectedRoomId = form.watch('roomId');
-  const selectedRoom = rooms.find((r) => r.id === selectedRoomId);
+  const selectedRoomIds = form.watch('roomIds');
+  const selectedRooms = rooms.filter((r) => selectedRoomIds.includes(r.id));
 
   if (isLoading) {
     return (
@@ -136,7 +149,7 @@ export default function RoomBookingPage() {
       <div>
         <h1 className="text-3xl font-bold">부속실 예약</h1>
         <p className="text-muted-foreground">
-          부속실을 예약합니다
+          한 번에 여러 부속실을 예약할 수 있습니다 (최대 10개)
         </p>
       </div>
 
@@ -152,51 +165,72 @@ export default function RoomBookingPage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
-                name="roomId"
-                render={({ field }) => (
+                name="roomIds"
+                render={() => (
                   <FormItem>
-                    <FormLabel>부속실 선택</FormLabel>
-                    <Select
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        const room = rooms.find((r) => r.id === value);
-                        if (room) {
-                          form.setValue('roomName', room.name);
-                        }
-                      }}
-                      defaultValue={field.value}
-                      disabled={isSubmitting}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="부속실을 선택하세요" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {availableRooms.map((room) => (
-                          <SelectItem key={room.id} value={room.id}>
-                            {room.name} ({room.location}) - 수용 {room.capacity}명
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>부속실 선택 (다중 선택 가능)</FormLabel>
+                    <div className="space-y-2">
+                      {availableRooms.map((room) => (
+                        <FormField
+                          key={room.id}
+                          control={form.control}
+                          name="roomIds"
+                          render={({ field }) => (
+                            <FormItem className="flex items-start space-x-3 space-y-0 rounded-md border p-4">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value?.includes(room.id)}
+                                  onCheckedChange={(checked) => {
+                                    return checked
+                                      ? field.onChange([
+                                          ...field.value,
+                                          room.id,
+                                        ])
+                                      : field.onChange(
+                                          field.value?.filter(
+                                            (id) => id !== room.id
+                                          )
+                                        );
+                                  }}
+                                  disabled={isSubmitting}
+                                />
+                              </FormControl>
+                              <div className="flex-1 space-y-1 leading-none">
+                                <FormLabel className="cursor-pointer font-medium">
+                                  {room.name} ({room.location}) - 수용{' '}
+                                  {room.capacity}명
+                                </FormLabel>
+                                <p className="text-sm text-muted-foreground">
+                                  시설: {room.facilities.join(', ')}
+                                </p>
+                                {room.description && (
+                                  <p className="text-sm text-muted-foreground">
+                                    {room.description}
+                                  </p>
+                                )}
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                      ))}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              {selectedRoom && (
+              {selectedRooms.length > 0 && (
                 <div className="rounded-lg border p-4">
-                  <h3 className="font-semibold">선택한 부속실 정보</h3>
-                  <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                    <p>부속실명: {selectedRoom.name}</p>
-                    <p>위치: {selectedRoom.location}</p>
-                    <p>수용 인원: {selectedRoom.capacity}명</p>
-                    <p>시설: {selectedRoom.facilities.join(', ')}</p>
-                    {selectedRoom.description && (
-                      <p>설명: {selectedRoom.description}</p>
-                    )}
-                  </div>
+                  <h3 className="font-semibold">
+                    선택한 부속실: {selectedRooms.length}개
+                  </h3>
+                  <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                    {selectedRooms.map((room) => (
+                      <li key={room.id}>
+                        • {room.name} ({room.location})
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
 
@@ -212,7 +246,7 @@ export default function RoomBookingPage() {
                           value={field.value}
                           onChange={field.onChange}
                           disabled={isSubmitting}
-                          disabledDates={(date) => date < new Date()}
+                          disabledDates={(date) => isBeforeToday(date)}
                           placeholder="날짜와 시간 선택"
                           className="w-full"
                         />
@@ -233,7 +267,7 @@ export default function RoomBookingPage() {
                           value={field.value}
                           onChange={field.onChange}
                           disabled={isSubmitting}
-                          disabledDates={(date) => date < new Date()}
+                          disabledDates={(date) => isBeforeToday(date)}
                           placeholder="날짜와 시간 선택"
                           className="w-full"
                         />
@@ -258,12 +292,11 @@ export default function RoomBookingPage() {
                         placeholder="예: 10"
                         disabled={isSubmitting}
                         {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
+                        onChange={(e) =>
+                          field.onChange(parseInt(e.target.value, 10))
+                        }
                       />
                     </FormControl>
-                    <FormDescription>
-                      {selectedRoom && `선택한 부속실 수용인원: ${selectedRoom.capacity}명`}
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -292,13 +325,17 @@ export default function RoomBookingPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => router.push('/dashboard/bookings')}
+                  onClick={() => router.push('/dashboard')}
                   disabled={isSubmitting}
                 >
                   취소
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? <LoadingSpinner size="sm" /> : '예약하기'}
+                  {isSubmitting ? (
+                    <LoadingSpinner size="sm" />
+                  ) : (
+                    `예약하기 (${selectedRoomIds.length}개)`
+                  )}
                 </Button>
               </div>
             </form>

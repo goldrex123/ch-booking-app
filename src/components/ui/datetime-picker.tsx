@@ -135,6 +135,8 @@ export function DateTimePicker({
                   value={selectedTime}
                   onSelect={handleTimeSelect}
                   className="justify-center"
+                  selectedDate={selectedDate}
+                  disablePastTimes={true}
                 />
                 <div className="flex gap-2">
                   <Button

@@ -24,5 +24,6 @@ export type {
   VehicleBookingFormData,
   RoomBookingFormData,
   BookingType,
-  BookingStatus,
+  MultiVehicleBookingFormData,
+  MultiRoomBookingFormData,
 } from './booking';

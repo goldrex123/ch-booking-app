@@ -181,16 +181,6 @@ export const ROOM_STATUS_LABELS: Record<Room['status'], string> = {
 };
 
 /**
- * 예약 상태 라벨
- */
-export const BOOKING_STATUS_LABELS = {
-  pending: '승인 대기',
-  approved: '승인됨',
-  rejected: '거부됨',
-  cancelled: '취소됨',
-} as const;
-
-/**
  * 일반적인 부속실 시설 목록
  */
 export const COMMON_FACILITIES = [

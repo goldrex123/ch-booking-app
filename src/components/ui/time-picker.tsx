@@ -14,6 +14,8 @@ interface TimePickerProps {
   onSelect?: (time: string) => void;
   disabled?: boolean;
   className?: string;
+  selectedDate?: Date; // 선택된 날짜
+  disablePastTimes?: boolean; // 과거 시간 비활성화
 }
 
 export function TimePicker({
@@ -21,9 +23,40 @@ export function TimePicker({
   onSelect,
   disabled = false,
   className,
+  selectedDate,
+  disablePastTimes = false,
 }: TimePickerProps) {
   // value를 시간과 분으로 파싱
-  const [hour, minute] = value.split(':').map((v) => v.padStart(2, '0'));
+  const parts = value.split(':').map((v) => v.padStart(2, '0'));
+  const hour = parts[0] || '09';
+  const minute = parts[1] || '00';
+
+  // 현재 시간 가져오기
+  const now = new Date();
+
+  // 오늘인지 체크
+  const isToday =
+    selectedDate &&
+    selectedDate.getFullYear() === now.getFullYear() &&
+    selectedDate.getMonth() === now.getMonth() &&
+    selectedDate.getDate() === now.getDate();
+
+  // 시간 비활성화 체크
+  const isHourDisabled = (h: number): boolean => {
+    if (!disablePastTimes || !isToday) return false;
+    return h < now.getHours();
+  };
+
+  // 분 비활성화 체크
+  const isMinuteDisabled = (m: number): boolean => {
+    if (!disablePastTimes || !isToday) return false;
+    const selectedHour = parseInt(hour, 10);
+    if (selectedHour > now.getHours()) return false;
+    if (selectedHour === now.getHours()) {
+      return m < now.getMinutes();
+    }
+    return false;
+  };
 
   // 시간 변경 핸들러
   const handleHourChange = (newHour: string) => {
@@ -56,7 +89,11 @@ export function TimePicker({
         </SelectTrigger>
         <SelectContent>
           {hours.map((h) => (
-            <SelectItem key={h} value={h.toString().padStart(2, '0')}>
+            <SelectItem
+              key={h}
+              value={h.toString().padStart(2, '0')}
+              disabled={isHourDisabled(h)}
+            >
               {h.toString().padStart(2, '0')}
             </SelectItem>
           ))}
@@ -76,7 +113,11 @@ export function TimePicker({
         </SelectTrigger>
         <SelectContent>
           {minutes.map((m) => (
-            <SelectItem key={m} value={m.toString().padStart(2, '0')}>
+            <SelectItem
+              key={m}
+              value={m.toString().padStart(2, '0')}
+              disabled={isMinuteDisabled(m)}
+            >
               {m.toString().padStart(2, '0')}
             </SelectItem>
           ))}

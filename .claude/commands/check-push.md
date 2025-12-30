@@ -1,1 +1,1 @@
-Github Public Repository에 push 해도 보안과 개인정보 유출 측면에서 문제가 없는지 체크해줘: 
+Commit은 진행하지 말고 Github Public Repository에 push 해도 보안과 개인정보 유출 측면에서 문제가 없는지 체크해줘: 

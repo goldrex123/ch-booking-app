@@ -83,7 +83,7 @@ export const useBookingStore = create<BookingStore>()(
     getUpcomingBookings: () => {
       const now = new Date().toISOString();
       return get()
-        .bookings.filter((b) => b.startDate >= now && b.status !== 'cancelled')
+        .bookings.filter((b) => b.startDate >= now)
         .sort((a, b) => a.startDate.localeCompare(b.startDate));
     },
   }))

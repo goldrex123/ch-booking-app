@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { ko } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -25,27 +23,24 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { DateTimePicker } from '@/components/ui/datetime-picker';
 import { Textarea } from '@/components/ui/textarea';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 
-import { vehicleBookingSchema, type VehicleBookingFormValues } from '@/lib/validations/booking';
+import {
+  multiVehicleBookingSchema,
+  type MultiVehicleBookingFormValues,
+} from '@/lib/validations/booking';
 import { useAuthStore } from '@/store/authStore';
 import { useVehicleStore } from '@/store/vehicleStore';
 import { useBookingStore } from '@/store/bookingStore';
 import { vehicleApi } from '@/lib/api/vehicles';
 import { bookingApi } from '@/lib/api/bookings';
-import { cn } from '@/lib/utils';
+import { isBeforeToday } from '@/lib/utils';
 
 /**
- * 차량 예약 페이지
+ * 차량 예약 페이지 (다중 선택 지원)
  */
 export default function VehicleBookingPage() {
   const router = useRouter();
@@ -56,11 +51,10 @@ export default function VehicleBookingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const form = useForm<VehicleBookingFormValues>({
-    resolver: zodResolver(vehicleBookingSchema),
+  const form = useForm<MultiVehicleBookingFormValues>({
+    resolver: zodResolver(multiVehicleBookingSchema),
     defaultValues: {
-      vehicleId: '',
-      vehicleName: '',
+      vehicleIds: [],
       startDate: '',
       endDate: '',
       destination: '',
@@ -87,7 +81,7 @@ export default function VehicleBookingPage() {
     }
   };
 
-  const onSubmit = async (data: VehicleBookingFormValues) => {
+  const onSubmit = async (data: MultiVehicleBookingFormValues) => {
     if (!user) {
       toast.error('로그인이 필요합니다');
       return;
@@ -96,16 +90,39 @@ export default function VehicleBookingPage() {
     setIsSubmitting(true);
 
     try {
-      const result = await bookingApi.createVehicleBooking(
+      // 차량 이름 맵 생성
+      const vehicleMap = new Map(
+        vehicles.map((v) => [v.id, { name: v.name }])
+      );
+
+      const result = await bookingApi.createMultiVehicleBookings(
         data,
         user.id,
-        user.name
+        user.name,
+        vehicleMap
       );
 
       if (result.success && result.data) {
-        addBooking(result.data);
-        toast.success('차량 예약이 완료되었습니다');
-        router.push('/dashboard/bookings');
+        const { succeeded, failed } = result.data;
+
+        // 성공한 예약들을 스토어에 추가
+        if (succeeded.length > 0) {
+          succeeded.forEach((booking) => addBooking(booking));
+        }
+
+        // 결과 메시지 표시
+        if (succeeded.length > 0 && failed.length === 0) {
+          toast.success(`${succeeded.length}건의 차량 예약이 완료되었습니다`);
+          router.push('/dashboard/bookings');
+        } else if (succeeded.length > 0 && failed.length > 0) {
+          toast.warning(
+            `${succeeded.length}건 성공, ${failed.length}건 실패했습니다`
+          );
+          console.error('실패한 예약:', failed);
+        } else {
+          toast.error('모든 예약이 실패했습니다');
+          console.error('실패한 예약:', failed);
+        }
       } else {
         toast.error(result.error || '예약에 실패했습니다');
       }
@@ -118,9 +135,10 @@ export default function VehicleBookingPage() {
   };
 
   const availableVehicles = vehicles.filter((v) => v.status === 'available');
-
-  const selectedVehicleId = form.watch('vehicleId');
-  const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId);
+  const selectedVehicleIds = form.watch('vehicleIds');
+  const selectedVehicles = vehicles.filter((v) =>
+    selectedVehicleIds.includes(v.id)
+  );
 
   if (isLoading) {
     return (
@@ -135,7 +153,7 @@ export default function VehicleBookingPage() {
       <div>
         <h1 className="text-3xl font-bold">차량 예약</h1>
         <p className="text-muted-foreground">
-          차량을 예약합니다
+          한 번에 여러 차량을 예약할 수 있습니다 (최대 10개)
         </p>
       </div>
 
@@ -151,50 +169,69 @@ export default function VehicleBookingPage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
-                name="vehicleId"
-                render={({ field }) => (
+                name="vehicleIds"
+                render={() => (
                   <FormItem>
-                    <FormLabel>차량 선택</FormLabel>
-                    <Select
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        const vehicle = vehicles.find((v) => v.id === value);
-                        if (vehicle) {
-                          form.setValue('vehicleName', vehicle.name);
-                        }
-                      }}
-                      defaultValue={field.value}
-                      disabled={isSubmitting}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="차량을 선택하세요" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {availableVehicles.map((vehicle) => (
-                          <SelectItem key={vehicle.id} value={vehicle.id}>
-                            {vehicle.name} ({vehicle.licensePlate}) - {vehicle.capacity}인승
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormLabel>차량 선택 (다중 선택 가능)</FormLabel>
+                    <div className="space-y-2">
+                      {availableVehicles.map((vehicle) => (
+                        <FormField
+                          key={vehicle.id}
+                          control={form.control}
+                          name="vehicleIds"
+                          render={({ field }) => (
+                            <FormItem className="flex items-start space-x-3 space-y-0 rounded-md border p-4">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value?.includes(vehicle.id)}
+                                  onCheckedChange={(checked) => {
+                                    return checked
+                                      ? field.onChange([
+                                          ...field.value,
+                                          vehicle.id,
+                                        ])
+                                      : field.onChange(
+                                          field.value?.filter(
+                                            (id) => id !== vehicle.id
+                                          )
+                                        );
+                                  }}
+                                  disabled={isSubmitting}
+                                />
+                              </FormControl>
+                              <div className="flex-1 space-y-1 leading-none">
+                                <FormLabel className="cursor-pointer font-medium">
+                                  {vehicle.name} ({vehicle.licensePlate}) -{' '}
+                                  {vehicle.capacity}인승
+                                </FormLabel>
+                                {vehicle.description && (
+                                  <p className="text-sm text-muted-foreground">
+                                    {vehicle.description}
+                                  </p>
+                                )}
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                      ))}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              {selectedVehicle && (
+              {selectedVehicles.length > 0 && (
                 <div className="rounded-lg border p-4">
-                  <h3 className="font-semibold">선택한 차량 정보</h3>
-                  <div className="mt-2 space-y-1 text-sm text-muted-foreground">
-                    <p>차량명: {selectedVehicle.name}</p>
-                    <p>차량번호: {selectedVehicle.licensePlate}</p>
-                    <p>탑승 인원: {selectedVehicle.capacity}명</p>
-                    {selectedVehicle.description && (
-                      <p>설명: {selectedVehicle.description}</p>
-                    )}
-                  </div>
+                  <h3 className="font-semibold">
+                    선택한 차량: {selectedVehicles.length}대
+                  </h3>
+                  <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
+                    {selectedVehicles.map((vehicle) => (
+                      <li key={vehicle.id}>
+                        • {vehicle.name} ({vehicle.licensePlate})
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
 
@@ -210,7 +247,7 @@ export default function VehicleBookingPage() {
                           value={field.value}
                           onChange={field.onChange}
                           disabled={isSubmitting}
-                          disabledDates={(date) => date < new Date()}
+                          disabledDates={(date) => isBeforeToday(date)}
                           placeholder="날짜와 시간 선택"
                           className="w-full"
                         />
@@ -231,7 +268,7 @@ export default function VehicleBookingPage() {
                           value={field.value}
                           onChange={field.onChange}
                           disabled={isSubmitting}
-                          disabledDates={(date) => date < new Date()}
+                          disabledDates={(date) => isBeforeToday(date)}
                           placeholder="날짜와 시간 선택"
                           className="w-full"
                         />
@@ -289,7 +326,11 @@ export default function VehicleBookingPage() {
                   취소
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? <LoadingSpinner size="sm" /> : '예약하기'}
+                  {isSubmitting ? (
+                    <LoadingSpinner size="sm" />
+                  ) : (
+                    `예약하기 (${selectedVehicleIds.length}대)`
+                  )}
                 </Button>
               </div>
             </form>

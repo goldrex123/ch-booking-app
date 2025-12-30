@@ -4,6 +4,8 @@ import type {
   RoomBooking,
   VehicleBookingFormData,
   RoomBookingFormData,
+  MultiVehicleBookingFormData,
+  MultiRoomBookingFormData,
 } from '@/types';
 import { storage, simulateApiCall, type ApiResponse } from './client';
 import { STORAGE_KEYS } from '../constants';
@@ -11,6 +13,18 @@ import { nanoid } from 'nanoid';
 import { isAfter, isBefore, parseISO, isEqual } from 'date-fns';
 
 const STORAGE_KEY = STORAGE_KEYS.BOOKINGS;
+
+/**
+ * 다중 예약 생성 결과 타입
+ */
+interface MultiBookingResult<T> {
+  succeeded: T[];
+  failed: Array<{
+    id: string;
+    name: string;
+    error: string;
+  }>;
+}
 
 /**
  * 날짜 범위 겹침 체크
@@ -114,14 +128,17 @@ export const bookingApi = {
     return simulateApiCall(() => {
       const bookings = storage.get<Booking[]>(STORAGE_KEY) || [];
 
+      // 서버 사이드 시간 검증
+      const now = new Date();
+      const startDate = parseISO(data.startDate);
+
+      if (!isAfter(startDate, now)) {
+        throw new Error('예약 시작 시간은 현재 시간 이후여야 합니다');
+      }
+
       // 중복 예약 체크
       const hasConflict = bookings.some((booking) => {
         if (booking.type !== 'vehicle' || booking.vehicleId !== data.vehicleId) {
-          return false;
-        }
-
-        // 취소된 예약은 제외
-        if (booking.status === 'cancelled') {
           return false;
         }
 
@@ -143,7 +160,6 @@ export const bookingApi = {
         id: nanoid(),
         userId,
         userName,
-        status: 'pending',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -166,14 +182,17 @@ export const bookingApi = {
     return simulateApiCall(() => {
       const bookings = storage.get<Booking[]>(STORAGE_KEY) || [];
 
+      // 서버 사이드 시간 검증
+      const now = new Date();
+      const startDate = parseISO(data.startDate);
+
+      if (!isAfter(startDate, now)) {
+        throw new Error('예약 시작 시간은 현재 시간 이후여야 합니다');
+      }
+
       // 중복 예약 체크
       const hasConflict = bookings.some((booking) => {
         if (booking.type !== 'room' || booking.roomId !== data.roomId) {
-          return false;
-        }
-
-        // 취소된 예약은 제외
-        if (booking.status === 'cancelled') {
           return false;
         }
 
@@ -195,7 +214,6 @@ export const bookingApi = {
         id: nanoid(),
         userId,
         userName,
-        status: 'pending',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -207,65 +225,6 @@ export const bookingApi = {
     });
   },
 
-  /**
-   * 예약 상태 변경
-   */
-  async updateStatus(
-    id: string,
-    status: Booking['status']
-  ): Promise<ApiResponse<Booking>> {
-    return simulateApiCall(() => {
-      const bookings = storage.get<Booking[]>(STORAGE_KEY) || [];
-      const index = bookings.findIndex((b) => b.id === id);
-
-      if (index === -1) {
-        throw new Error('예약을 찾을 수 없습니다');
-      }
-
-      const booking = bookings[index];
-      if (!booking) {
-        throw new Error('예약을 찾을 수 없습니다');
-      }
-
-      const updatedBooking: Booking =
-        booking.type === 'vehicle'
-          ? {
-              ...(booking as VehicleBooking),
-              status,
-              updatedAt: new Date().toISOString(),
-            }
-          : {
-              ...(booking as RoomBooking),
-              status,
-              updatedAt: new Date().toISOString(),
-            };
-
-      bookings[index] = updatedBooking;
-      storage.set(STORAGE_KEY, bookings);
-      return updatedBooking;
-    });
-  },
-
-  /**
-   * 예약 취소
-   */
-  async cancel(id: string): Promise<ApiResponse<Booking>> {
-    return this.updateStatus(id, 'cancelled');
-  },
-
-  /**
-   * 예약 승인
-   */
-  async approve(id: string): Promise<ApiResponse<Booking>> {
-    return this.updateStatus(id, 'approved');
-  },
-
-  /**
-   * 예약 거부
-   */
-  async reject(id: string): Promise<ApiResponse<Booking>> {
-    return this.updateStatus(id, 'rejected');
-  },
 
   /**
    * 예약 수정
@@ -292,12 +251,17 @@ export const bookingApi = {
         const newStartDate = data.startDate || targetBooking.startDate;
         const newEndDate = data.endDate || targetBooking.endDate;
 
+        // 서버 사이드 시간 검증
+        const now = new Date();
+        const startDate = parseISO(newStartDate);
+
+        if (!isAfter(startDate, now)) {
+          throw new Error('예약 시작 시간은 현재 시간 이후여야 합니다');
+        }
+
         const hasConflict = bookings.some((booking, index) => {
           // 자기 자신은 제외
           if (index === targetIndex) return false;
-
-          // 취소된 예약은 제외
-          if (booking.status === 'cancelled') return false;
 
           // 같은 리소스인지 확인
           if (targetBooking.type === 'vehicle' && booking.type === 'vehicle') {
@@ -356,6 +320,180 @@ export const bookingApi = {
 
       storage.set(STORAGE_KEY, filtered);
       return undefined;
+    });
+  },
+
+  /**
+   * 다중 차량 예약 생성
+   */
+  async createMultiVehicleBookings(
+    data: MultiVehicleBookingFormData,
+    userId: string,
+    userName: string,
+    vehicleMap: Map<string, { name: string }>
+  ): Promise<ApiResponse<MultiBookingResult<VehicleBooking>>> {
+    return simulateApiCall(() => {
+      const bookings = storage.get<Booking[]>(STORAGE_KEY) || [];
+
+      // 서버 사이드 시간 검증
+      const now = new Date();
+      const startDate = parseISO(data.startDate);
+
+      if (!isAfter(startDate, now)) {
+        throw new Error('예약 시작 시간은 현재 시간 이후여야 합니다');
+      }
+
+      const succeeded: VehicleBooking[] = [];
+      const failed: MultiBookingResult<VehicleBooking>['failed'] = [];
+
+      // 각 차량에 대해 순차적으로 예약 생성
+      for (const vehicleId of data.vehicleIds) {
+        const vehicleInfo = vehicleMap.get(vehicleId);
+        if (!vehicleInfo) {
+          failed.push({
+            id: vehicleId,
+            name: '알 수 없음',
+            error: '차량 정보를 찾을 수 없습니다',
+          });
+          continue;
+        }
+
+        // 중복 체크
+        const hasConflict = bookings.some((booking) => {
+          if (booking.type !== 'vehicle' || booking.vehicleId !== vehicleId) {
+            return false;
+          }
+
+          return hasDateOverlap(
+            booking.startDate,
+            booking.endDate,
+            data.startDate,
+            data.endDate
+          );
+        });
+
+        if (hasConflict) {
+          failed.push({
+            id: vehicleId,
+            name: vehicleInfo.name,
+            error: '해당 시간대에 이미 예약이 존재합니다',
+          });
+          continue;
+        }
+
+        // 예약 생성
+        const newBooking: VehicleBooking = {
+          vehicleId,
+          vehicleName: vehicleInfo.name,
+          startDate: data.startDate,
+          endDate: data.endDate,
+          destination: data.destination,
+          purpose: data.purpose,
+          type: 'vehicle',
+          id: nanoid(),
+          userId,
+          userName,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        bookings.push(newBooking);
+        succeeded.push(newBooking);
+      }
+
+      // 성공한 예약 저장
+      if (succeeded.length > 0) {
+        storage.set(STORAGE_KEY, bookings);
+      }
+
+      return { succeeded, failed };
+    });
+  },
+
+  /**
+   * 다중 부속실 예약 생성
+   */
+  async createMultiRoomBookings(
+    data: MultiRoomBookingFormData,
+    userId: string,
+    userName: string,
+    roomMap: Map<string, { name: string }>
+  ): Promise<ApiResponse<MultiBookingResult<RoomBooking>>> {
+    return simulateApiCall(() => {
+      const bookings = storage.get<Booking[]>(STORAGE_KEY) || [];
+
+      // 서버 사이드 시간 검증
+      const now = new Date();
+      const startDate = parseISO(data.startDate);
+
+      if (!isAfter(startDate, now)) {
+        throw new Error('예약 시작 시간은 현재 시간 이후여야 합니다');
+      }
+
+      const succeeded: RoomBooking[] = [];
+      const failed: MultiBookingResult<RoomBooking>['failed'] = [];
+
+      // 각 부속실에 대해 순차적으로 예약 생성
+      for (const roomId of data.roomIds) {
+        const roomInfo = roomMap.get(roomId);
+        if (!roomInfo) {
+          failed.push({
+            id: roomId,
+            name: '알 수 없음',
+            error: '부속실 정보를 찾을 수 없습니다',
+          });
+          continue;
+        }
+
+        // 중복 체크
+        const hasConflict = bookings.some((booking) => {
+          if (booking.type !== 'room' || booking.roomId !== roomId) {
+            return false;
+          }
+
+          return hasDateOverlap(
+            booking.startDate,
+            booking.endDate,
+            data.startDate,
+            data.endDate
+          );
+        });
+
+        if (hasConflict) {
+          failed.push({
+            id: roomId,
+            name: roomInfo.name,
+            error: '해당 시간대에 이미 예약이 존재합니다',
+          });
+          continue;
+        }
+
+        // 예약 생성
+        const newBooking: RoomBooking = {
+          roomId,
+          roomName: roomInfo.name,
+          startDate: data.startDate,
+          endDate: data.endDate,
+          attendees: data.attendees,
+          purpose: data.purpose,
+          type: 'room',
+          id: nanoid(),
+          userId,
+          userName,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        bookings.push(newBooking);
+        succeeded.push(newBooking);
+      }
+
+      // 성공한 예약 저장
+      if (succeeded.length > 0) {
+        storage.set(STORAGE_KEY, bookings);
+      }
+
+      return { succeeded, failed };
     });
   },
 };

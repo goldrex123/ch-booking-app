@@ -7,7 +7,7 @@ import { ko } from 'date-fns/locale';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
 import type { CalendarEvent } from './utils';
-import { getEventColor } from './utils';
+import { BOOKING_EVENT_COLOR } from './utils';
 
 const locales = { ko };
 
@@ -34,14 +34,13 @@ export function BookingCalendar({
   // 제어되는 컴포넌트를 위한 상태 관리
   const [currentView, setCurrentView] = useState<View>(Views.MONTH);
   const [currentDate, setCurrentDate] = useState(new Date());
-  // 이벤트 스타일 적용
-  const eventStyleGetter = (event: CalendarEvent) => {
-    const colors = getEventColor(event.resource?.status);
+  // 이벤트 스타일 적용 (모든 예약 단일 색상)
+  const eventStyleGetter = () => {
     return {
       style: {
-        backgroundColor: colors.bg,
-        borderColor: colors.border,
-        color: colors.text,
+        backgroundColor: BOOKING_EVENT_COLOR.bg,
+        borderColor: BOOKING_EVENT_COLOR.border,
+        color: BOOKING_EVENT_COLOR.text,
         borderWidth: '1px',
         borderStyle: 'solid',
       },
