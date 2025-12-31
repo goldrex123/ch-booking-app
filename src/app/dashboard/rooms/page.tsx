@@ -133,8 +133,6 @@ export default function RoomsPage() {
                   <TableRow>
                     <TableHead>부속실명</TableHead>
                     <TableHead>위치</TableHead>
-                    <TableHead>수용인원</TableHead>
-                    <TableHead>시설</TableHead>
                     <TableHead>상태</TableHead>
                     <TableHead className="text-right">작업</TableHead>
                   </TableRow>
@@ -144,28 +142,13 @@ export default function RoomsPage() {
                     <TableRow key={room.id}>
                       <TableCell className="font-medium">{room.name}</TableCell>
                       <TableCell>{room.location}</TableCell>
-                      <TableCell>{room.capacity}명</TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {room.facilities.slice(0, 2).map((f) => (
-                            <Badge key={f} variant="outline" className="text-xs">
-                              {f}
-                            </Badge>
-                          ))}
-                          {room.facilities.length > 2 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{room.facilities.length - 2}
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
                       <TableCell>
                         <Badge variant={getStatusVariant(room.status)}>
                           {ROOM_STATUS_LABELS[room.status]}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-1">
                           <Button
                             asChild
                             variant="ghost"

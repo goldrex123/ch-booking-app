@@ -152,7 +152,7 @@ export default function VehiclesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-1">
                           <Button
                             asChild
                             variant="ghost"
