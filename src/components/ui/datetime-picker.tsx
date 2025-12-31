@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Calendar as CalendarIcon } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, getNextHalfHourTime } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -62,7 +62,7 @@ export function DateTimePicker({
     currentValue?.date
   );
   const [selectedTime, setSelectedTime] = useState<string>(
-    currentValue?.time || '09:00'
+    currentValue?.time || getNextHalfHourTime()
   );
 
   // 날짜 선택 핸들러

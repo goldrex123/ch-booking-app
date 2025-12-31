@@ -12,23 +12,10 @@ export const roomSchema = z.object({
     .string()
     .min(1, '위치를 입력해주세요')
     .max(100, '위치는 최대 100자까지 가능합니다'),
-  capacity: z
-    .number()
-    .int('정수를 입력해주세요')
-    .min(1, '최소 1명 이상이어야 합니다')
-    .max(500, '최대 500명까지 가능합니다'),
-  facilities: z
-    .array(z.string())
-    .min(1, '최소 1개 이상의 시설을 선택해주세요'),
   status: z.enum(['available', 'in-use', 'maintenance']),
   description: z
     .string()
     .max(500, '설명은 최대 500자까지 가능합니다')
-    .optional()
-    .or(z.literal('')),
-  imageUrl: z
-    .string()
-    .url('올바른 URL 형식이 아닙니다')
     .optional()
     .or(z.literal('')),
 });

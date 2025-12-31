@@ -99,8 +99,6 @@ export const INITIAL_ROOMS: Room[] = [
     id: 'room-1',
     name: '회의실 A',
     location: '본관 2층',
-    capacity: 10,
-    facilities: ['프로젝터', '화이트보드', '화상회의'],
     status: 'available',
     description: '중규모 회의실',
     createdAt: new Date().toISOString(),
@@ -110,8 +108,6 @@ export const INITIAL_ROOMS: Room[] = [
     id: 'room-2',
     name: '회의실 B',
     location: '본관 3층',
-    capacity: 6,
-    facilities: ['TV', '화이트보드'],
     status: 'available',
     description: '소규모 회의실',
     createdAt: new Date().toISOString(),
@@ -121,8 +117,6 @@ export const INITIAL_ROOMS: Room[] = [
     id: 'room-3',
     name: '대회의실',
     location: '본관 5층',
-    capacity: 50,
-    facilities: ['프로젝터', '음향시설', '화상회의', '무선마이크'],
     status: 'available',
     description: '대형 회의실 / 세미나실',
     createdAt: new Date().toISOString(),
@@ -132,8 +126,6 @@ export const INITIAL_ROOMS: Room[] = [
     id: 'room-4',
     name: '교육실',
     location: '별관 1층',
-    capacity: 30,
-    facilities: ['프로젝터', '화이트보드', '책상'],
     status: 'available',
     description: '교육 및 워크샵용',
     createdAt: new Date().toISOString(),
@@ -143,8 +135,6 @@ export const INITIAL_ROOMS: Room[] = [
     id: 'room-5',
     name: '휴게실',
     location: '본관 1층',
-    capacity: 20,
-    facilities: ['소파', '커피머신', 'TV'],
     status: 'in-use',
     description: '직원 휴게 공간',
     createdAt: new Date().toISOString(),
@@ -179,22 +169,6 @@ export const ROOM_STATUS_LABELS: Record<Room['status'], string> = {
   'in-use': '사용 중',
   maintenance: '정비 중',
 };
-
-/**
- * 일반적인 부속실 시설 목록
- */
-export const COMMON_FACILITIES = [
-  '프로젝터',
-  '화이트보드',
-  '화상회의',
-  'TV',
-  '음향시설',
-  '무선마이크',
-  '책상',
-  '소파',
-  '커피머신',
-  'WiFi',
-] as const;
 
 /**
  * LocalStorage 키 상수

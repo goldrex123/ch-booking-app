@@ -1,6 +1,6 @@
 'use client';
 
-import { cn } from '@/lib/utils';
+import { cn, getNextHalfHourTime } from '@/lib/utils';
 import {
   Select,
   SelectContent,
@@ -19,7 +19,7 @@ interface TimePickerProps {
 }
 
 export function TimePicker({
-  value = '09:00',
+  value = getNextHalfHourTime(),
   onSelect,
   disabled = false,
   className,

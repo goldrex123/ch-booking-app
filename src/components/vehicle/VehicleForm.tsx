@@ -53,7 +53,6 @@ export function VehicleForm({
           capacity: initialData.capacity,
           status: initialData.status,
           description: initialData.description || '',
-          imageUrl: initialData.imageUrl || '',
         }
       : {
           name: '',
@@ -62,7 +61,6 @@ export function VehicleForm({
           capacity: 5,
           status: 'available',
           description: '',
-          imageUrl: '',
         },
   });
 
@@ -172,25 +170,6 @@ export function VehicleForm({
                     <SelectItem value="maintenance">정비 중</SelectItem>
                   </SelectContent>
                 </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="imageUrl"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>이미지 URL (선택사항)</FormLabel>
-                <FormControl>
-                  <Input
-                    type="url"
-                    placeholder="https://example.com/image.jpg"
-                    disabled={isLoading}
-                    {...field}
-                  />
-                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

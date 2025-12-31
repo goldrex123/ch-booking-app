@@ -24,11 +24,6 @@ export const vehicleSchema = z.object({
     .max(500, '설명은 최대 500자까지 가능합니다')
     .optional()
     .or(z.literal('')),
-  imageUrl: z
-    .string()
-    .url('올바른 URL 형식이 아닙니다')
-    .optional()
-    .or(z.literal('')),
 });
 
 /**

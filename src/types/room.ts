@@ -10,11 +10,8 @@ export interface Room {
   id: string;
   name: string;
   location: string;
-  capacity: number;
-  facilities: string[];
   status: RoomStatus;
   description?: string;
-  imageUrl?: string;
   createdAt: string;
   updatedAt: string;
 }

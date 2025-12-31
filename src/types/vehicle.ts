@@ -19,7 +19,6 @@ export interface Vehicle {
   capacity: number;
   status: VehicleStatus;
   description?: string;
-  imageUrl?: string;
   createdAt: string;
   updatedAt: string;
 }

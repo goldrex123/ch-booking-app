@@ -197,12 +197,8 @@ export default function RoomBookingPage() {
                               </FormControl>
                               <div className="flex-1 space-y-1 leading-none">
                                 <FormLabel className="cursor-pointer font-medium">
-                                  {room.name} ({room.location}) - 수용{' '}
-                                  {room.capacity}명
+                                  {room.name} ({room.location})
                                 </FormLabel>
-                                <p className="text-sm text-muted-foreground">
-                                  시설: {room.facilities.join(', ')}
-                                </p>
                                 {room.description && (
                                   <p className="text-sm text-muted-foreground">
                                     {room.description}

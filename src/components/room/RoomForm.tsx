@@ -4,7 +4,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Form,
   FormControl,
@@ -25,7 +24,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 
 import { roomSchema, type RoomFormValues } from '@/lib/validations/room';
-import { COMMON_FACILITIES } from '@/lib/constants';
 import type { Room } from '@/types';
 
 interface RoomFormProps {
@@ -50,20 +48,14 @@ export function RoomForm({
       ? {
           name: initialData.name,
           location: initialData.location,
-          capacity: initialData.capacity,
-          facilities: initialData.facilities,
           status: initialData.status,
           description: initialData.description || '',
-          imageUrl: initialData.imageUrl || '',
         }
       : {
           name: '',
           location: '',
-          capacity: 10,
-          facilities: [],
           status: 'available',
           description: '',
-          imageUrl: '',
         },
   });
 
@@ -101,27 +93,6 @@ export function RoomForm({
 
           <FormField
             control={form.control}
-            name="capacity"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>수용 인원</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={500}
-                    disabled={isLoading}
-                    {...field}
-                    onChange={(e) => field.onChange(parseInt(e.target.value, 10))}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
             name="status"
             render={({ field }) => (
               <FormItem>
@@ -146,69 +117,12 @@ export function RoomForm({
               </FormItem>
             )}
           />
-
-          <FormField
-            control={form.control}
-            name="imageUrl"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>이미지 URL (선택사항)</FormLabel>
-                <FormControl>
-                  <Input
-                    type="url"
-                    placeholder="https://example.com/image.jpg"
-                    disabled={isLoading}
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
         </div>
 
         <FormField
           control={form.control}
-          name="facilities"
-          render={() => (
-            <FormItem>
-              <FormLabel>시설</FormLabel>
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
-                {COMMON_FACILITIES.map((facility) => (
-                  <FormField
-                    key={facility}
-                    control={form.control}
-                    name="facilities"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value?.includes(facility)}
-                            onCheckedChange={(checked) => {
-                              return checked
-                                ? field.onChange([...field.value, facility])
-                                : field.onChange(
-                                    field.value?.filter((value) => value !== facility)
-                                  );
-                            }}
-                            disabled={isLoading}
-                          />
-                        </FormControl>
-                        <FormLabel className="font-normal">{facility}</FormLabel>
-                      </FormItem>
-                    )}
-                  />
-                ))}
-              </div>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
           name="description"
-          render={({ field }) => (
+          render={({ field}) => (
             <FormItem>
               <FormLabel>설명 (선택사항)</FormLabel>
               <FormControl>
